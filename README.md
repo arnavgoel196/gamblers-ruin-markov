@@ -115,7 +115,8 @@ print(q1_expected_duration(k=3, N=10, p=0.4))  # 12.9044
 
 - Python 3.x
 - NumPy
-  
 
+---
+  
 ## Live Demo
 [Interactive Calculator](https://arnavgoel196.github.io/gamblers-ruin-markov/)
