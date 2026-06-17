@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gambler's Ruin — Markov Chain Calculator</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f8f6;color:#1a1a1a;min-height:100vh}
+.page{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.hero{margin-bottom:2rem}
+.hero h1{font-size:26px;font-weight:500;margin-bottom:6px}
+.hero p{font-size:15px;color:#666;line-height:1.6}
+.card{background:#fff;border-radius:12px;border:0.5px solid #e0e0d8;overflow:hidden;margin-bottom:1.5rem}
+.tabs{display:flex;gap:0;border-bottom:0.5px solid #e0e0d8;background:#fafaf8}
+.tab{padding:12px 20px;font-size:14px;cursor:pointer;border:none;background:none;color:#888;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tab.active{color:#1a1a1a;border-bottom:2px solid #7F77DD;font-weight:500;background:#fff}
+.tab:hover:not(.active){color:#444;background:#f2f2ef}
+.panel{display:none;padding:1.5rem}
+.panel.active{display:block}
+.row{display:flex;gap:2rem;flex-wrap:wrap}
+.controls{flex:1;min-width:200px}
+.results{flex:2;min-width:280px}
+.field{margin-bottom:1.1rem}
+.field label{font-size:13px;color:#666;display:flex;justify-content:space-between;margin-bottom:5px}
+.field label span{font-weight:500;color:#1a1a1a}
+input[type=range]{width:100%;accent-color:#7F77DD;cursor:pointer}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem}
+.metric{background:#f5f5f2;border-radius:8px;padding:12px 14px}
+.metric-label{font-size:12px;color:#888;margin-bottom:4px}
+.metric-value{font-size:22px;font-weight:500;color:#1a1a1a}
+.metric-sub{font-size:11px;color:#aaa;margin-top:2px}
+.chart-wrap{position:relative;width:100%;height:220px;margin-bottom:1rem}
+.section-title{font-size:12px;font-weight:500;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em}
+.divider{height:0.5px;background:#e0e0d8;margin:1.25rem 0}
+.insight{font-size:13px;color:#555;line-height:1.6;padding:10px 14px;background:#f5f4ff;border-radius:8px;border-left:3px solid #7F77DD}
+.legend{display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:#666}
+.legend-dot{width:10px;height:10px;border-radius:2px}
+footer{text-align:center;font-size:13px;color:#aaa;margin-top:2rem;padding-top:1rem;border-top:0.5px solid #e0e0d8}
+footer a{color:#7F77DD;text-decoration:none}
+@media(max-width:600px){.row{flex-direction:column}.metrics{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero">
+    <h1>Gambler's Ruin — Markov Chain Calculator</h1>
+    <p>An interactive study of the Gambler's Ruin problem using Discrete Time Markov Chains. Four progressively complex strategies, each computed analytically or via linear system solving.</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(0)">Q1 — Timid strategy</button>
+      <button class="tab" onclick="switchTab(1)">Q2 — Bold strategy</button>
+      <button class="tab" onclick="switchTab(2)">Q3 — Quit rules</button>
+      <button class="tab" onclick="switchTab(3)">Q4 — General chain</button>
+    </div>
+
+    <!-- Q1 -->
+    <div class="panel active" id="panel0">
+      <div class="row">
+        <div class="controls">
+          <div class="section-title">Parameters</div>
+          <div class="field"><label>Starting wealth (k) <span id="q1k-out">3</span></label><input type="range" id="q1k" min="1" max="19" value="3" step="1" oninput="updateQ1()"></div>
+          <div class="field"><label>Goal (N) <span id="q1N-out">10</span></label><input type="range" id="q1N" min="2" max="20" value="10" step="1" oninput="updateQ1()"></div>
+          <div class="field"><label>Win probability (p) <span id="q1p-out">0.40</span></label><input type="range" id="q1p" min="0.01" max="0.99" value="0.4" step="0.01" oninput="updateQ1()"></div>
+          <div class="divider"></div>
+          <div class="section-title">About</div>
+          <p style="font-size:13px;color:#666;line-height:1.6">Bet exactly $1 each round. Game ends at $0 (ruin) or $N (goal). Win probability solved via closed-form Markov recurrence. Expected duration D(k) = [k − N·W(k)] / (q − p).</p>
+        </div>
+        <div class="results">
+          <div class="section-title">Results</div>
+          <div class="metrics">
+            <div class="metric"><div class="metric-label">Win probability</div><div class="metric-value" id="q1-wp">—</div><div class="metric-sub">reach N before 0</div></div>
+            <div class="metric"><div class="metric-label">Expected rounds</div><div class="metric-value" id="q1-dur">—</div><div class="metric-sub">until game ends</div></div>
+          </div>
+          <div class="section-title">Win probability across all starting states</div>
+          <div class="chart-wrap"><canvas id="q1chart" role="img" aria-label="Win probability across starting wealth values">Win probability chart</canvas></div>
+          <div class="divider"></div>
+          <div class="insight" id="q1-insight"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="panel" id="panel1">
+      <div class="row">
+        <div class="controls">
+          <div class="section-title">Parameters</div>
+          <div class="field"><label>Goal (N) <span id="q2N-out">10</span></label><input type="range" id="q2N" min="2" max="20" value="10" step="2" oninput="updateQ2()"></div>
+          <div class="field"><label>Win probability (p) <span id="q2p-out">0.40</span></label><input type="range" id="q2p" min="0.01" max="0.99" value="0.4" step="0.01" oninput="updateQ2()"></div>
+          <div class="divider"></div>
+          <div class="section-title">About</div>
+          <p style="font-size:13px;color:#666;line-height:1.6">If k &lt; N/2: bet all k (go to 2k or 0). If k ≥ N/2: bet N−k (go to N or 2k−N). No closed form — solved as a linear system via transition matrix.</p>
+        </div>
+        <div class="results">
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#D85A30"></div>Bold strategy</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#7F77DD"></div>Timid strategy</div>
+          </div>
+          <div class="section-title">Win probability — bold vs timid</div>
+          <div class="chart-wrap"><canvas id="q2chart" role="img" aria-label="Bold vs timid win probability comparison">Bold vs timid chart</canvas></div>
+          <div class="divider"></div>
+          <div class="insight" id="q2-insight"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="panel" id="panel2">
+      <div class="row">
+        <div class="controls">
+          <div class="section-title">Parameters</div>
+          <div class="field"><label>Starting wealth (k) <span id="q3k-out">5</span></label><input type="range" id="q3k" min="1" max="19" value="5" step="1" oninput="updateQ3()"></div>
+          <div class="field"><label>Goal (N) <span id="q3N-out">10</span></label><input type="range" id="q3N" min="2" max="20" value="10" step="1" oninput="updateQ3()"></div>
+          <div class="field"><label>Floor (t) <span id="q3t-out">2</span></label><input type="range" id="q3t" min="0" max="9" value="2" step="1" oninput="updateQ3()"></div>
+          <div class="field"><label>Win streak (W) <span id="q3W-out">3</span></label><input type="range" id="q3W" min="1" max="8" value="3" step="1" oninput="updateQ3()"></div>
+          <div class="field"><label>Win probability (p) <span id="q3p-out">0.50</span></label><input type="range" id="q3p" min="0.01" max="0.99" value="0.5" step="0.01" oninput="updateQ3()"></div>
+          <div class="divider"></div>
+          <div class="section-title">About</div>
+          <p style="font-size:13px;color:#666;line-height:1.6">State = (wealth k, streak s). Game ends at goal N, floor t, or streak W. Expanded state space solved as linear system of size (N−t+1)×(W+1).</p>
+        </div>
+        <div class="results">
+          <div class="section-title">Results</div>
+          <div class="metrics">
+            <div class="metric"><div class="metric-label">Expected rounds</div><div class="metric-value" id="q3-dur">—</div><div class="metric-sub">until any rule triggers</div></div>
+            <div class="metric"><div class="metric-label">States solved</div><div class="metric-value" id="q3-states">—</div><div class="metric-sub">(k, streak) pairs</div></div>
+          </div>
+          <div class="section-title">Expected duration by starting wealth</div>
+          <div class="chart-wrap"><canvas id="q3chart" role="img" aria-label="Expected duration across starting wealth values">Expected duration chart</canvas></div>
+          <div class="divider"></div>
+          <div class="insight" id="q3-insight"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="panel" id="panel3">
+      <div class="row">
+        <div class="controls">
+          <div class="section-title">Parameters</div>
+          <div class="field"><label>States (N) <span id="q4N-out">6</span></label><input type="range" id="q4N" min="3" max="10" value="6" step="1" oninput="updateQ4()"></div>
+          <div class="field"><label>p — move up <span id="q4p-out">0.50</span></label><input type="range" id="q4p" min="0.01" max="0.89" value="0.5" step="0.01" oninput="updateQ4()"></div>
+          <div class="field"><label>q — move down <span id="q4q-out">0.30</span></label><input type="range" id="q4q" min="0.01" max="0.89" value="0.3" step="0.01" oninput="updateQ4()"></div>
+          <div class="field"><label>r = 1 − p − q (stay) <span id="q4r-out">0.20</span></label></div>
+          <div class="field"><label>From state (a) <span id="q4a-out">1</span></label><input type="range" id="q4a" min="0" max="6" value="1" step="1" oninput="updateQ4()"></div>
+          <div class="field"><label>To state (b) <span id="q4b-out">5</span></label><input type="range" id="q4b" min="0" max="6" value="5" step="1" oninput="updateQ4()"></div>
+          <div class="divider"></div>
+          <div class="section-title">About</div>
+          <p style="font-size:13px;color:#666;line-height:1.6">Each state has its own p[k], q[k], r[k]. Stationary distribution π solved via (P−I)ᵀ·π = 0 with Σπ = 1. Expected time solved via linear system.</p>
+        </div>
+        <div class="results">
+          <div class="section-title">Results</div>
+          <div class="metrics">
+            <div class="metric"><div class="metric-label">Expected time a→b</div><div class="metric-value" id="q4-et">—</div><div class="metric-sub">rounds</div></div>
+            <div class="metric"><div class="metric-label">Expected wealth</div><div class="metric-value" id="q4-ew">—</div><div class="metric-sub">under stationary dist.</div></div>
+          </div>
+          <div class="section-title">Stationary distribution π(k)</div>
+          <div class="chart-wrap"><canvas id="q4chart" role="img" aria-label="Stationary distribution across states">Stationary distribution</canvas></div>
+          <div class="divider"></div>
+          <div class="insight" id="q4-insight"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Built by <a href="https://github.com/arnavgoel196/gamblers-ruin-markov">Arnav Goel</a> · Gambler's Ruin via Discrete Time Markov Chains · Python source on GitHub
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const PURPLE='#7F77DD', CORAL='#D85A30', TEAL='#1D9E75', GRAY='#888780';
+
+function solveLinear(A,b){
+  const n=b.length;
+  const M=A.map((r,i)=>[...r,b[i]]);
+  for(let col=0;col<n;col++){
+    let maxR=col;
+    for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[maxR][col])) maxR=r;
+    [M[col],M[maxR]]=[M[maxR],M[col]];
+    if(Math.abs(M[col][col])<1e-12) continue;
+    const piv=M[col][col];
+    for(let j=col;j<=n;j++) M[col][j]/=piv;
+    for(let r=0;r<n;r++){
+      if(r===col) continue;
+      const f=M[r][col];
+      for(let j=col;j<=n;j++) M[r][j]-=f*M[col][j];
+    }
+  }
+  return M.map(r=>r[n]);
+}
+
+function q1WinProb(k,N,p){
+  if(Math.abs(p-0.5)<1e-9) return k/N;
+  const r=(1-p)/p;
+  return(1-Math.pow(r,k))/(1-Math.pow(r,N));
+}
+function q1Duration(k,N,p){
+  if(Math.abs(p-0.5)<1e-9) return k*(N-k);
+  const W=q1WinProb(k,N,p);
+  return(k-N*W)/((1-p)-p);
+}
+
+function q2Solve(N,p){
+  const q=1-p,sz=N+1;
+  const A=Array.from({length:sz},()=>Array(sz).fill(0));
+  const bW=Array(sz).fill(0),bD=Array(sz).fill(0);
+  A[0][0]=1;A[N][N]=1;bW[N]=1;
+  for(let k=1;k<N;k++){
+    A[k][k]=1;
+    if(k<N/2){A[k][2*k]=-p;}
+    else{A[k][2*k-N]=-q;bW[k]=p;}
+    bD[k]=1;
+  }
+  const W=solveLinear(A.map(r=>[...r]),[...bW]);
+  const D=solveLinear(A.map(r=>[...r]),[...bD]);
+  return{W,D};
+}
+
+function q3Solve(N,t,Ws,p){
+  const q=1-p,W1=Ws+1;
+  const size=(N-t+1)*W1;
+  const idx=(k,s)=>(k-t)*W1+s;
+  const A=Array.from({length:size},()=>Array(size).fill(0));
+  const bv=Array(size).fill(0);
+  for(let k=t;k<=N;k++) for(let s=0;s<=Ws;s++){
+    const i=idx(k,s);
+    if(k===t||k===N||s===Ws){A[i][i]=1;continue;}
+    A[i][i]=1;A[i][idx(k+1,s+1)]=-p;A[i][idx(k-1,0)]=-q;bv[i]=1;
+  }
+  return{D:solveLinear(A,bv),idx,W1};
+}
+
+function q4Solve(N,pA,qA,rA){
+  const sz=N+1;
+  const P=Array.from({length:sz},()=>Array(sz).fill(0));
+  for(let k=0;k<=N;k++){
+    P[k][k]=rA[k];
+    if(k+1<=N)P[k][k+1]=pA[k];
+    if(k-1>=0)P[k][k-1]=qA[k];
+  }
+  const A=Array.from({length:sz},()=>Array(sz).fill(0));
+  for(let i=0;i<sz;i++) for(let j=0;j<sz;j++) A[i][j]=P[j][i]-(i===j?1:0);
+  for(let j=0;j<sz;j++) A[sz-1][j]=1;
+  const b=Array(sz).fill(0);b[sz-1]=1;
+  return solveLinear(A,b);
+}
+
+function q4ExpTime(N,pA,qA,rA,a,b){
+  const sz=N+1;
+  const A=Array.from({length:sz},()=>Array(sz).fill(0));
+  const bv=Array(sz).fill(0);
+  A[b][b]=1;
+  for(let k=0;k<=N;k++){
+    if(k===b) continue;
+    A[k][k]=1-rA[k];
+    if(k+1<=N)A[k][k+1]=-pA[k];
+    if(k-1>=0)A[k][k-1]=-qA[k];
+    bv[k]=1;
+  }
+  return solveLinear(A,bv)[a];
+}
+
+const charts={};
+function makeChart(id,type,labels,datasets,opts={}){
+  if(charts[id]) charts[id].destroy();
+  const ctx=document.getElementById(id).getContext('2d');
+  charts[id]=new Chart(ctx,{
+    type,data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:!!opts.legend,labels:{boxWidth:10,font:{size:12}}}},scales:{y:{beginAtZero:true}}}
+  });
+}
+
+function switchTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',i===j));
+}
+
+function updateQ1(){
+  const N=+document.getElementById('q1N').value;
+  let k=Math.min(+document.getElementById('q1k').value,N-1);
+  const p=+document.getElementById('q1p').value;
+  document.getElementById('q1k-out').textContent=k;
+  document.getElementById('q1N-out').textContent=N;
+  document.getElementById('q1p-out').textContent=p.toFixed(2);
+  const wp=q1WinProb(k,N,p),dur=q1Duration(k,N,p);
+  document.getElementById('q1-wp').textContent=(wp*100).toFixed(1)+'%';
+  document.getElementById('q1-dur').textContent=dur.toFixed(1);
+  const labels=[],data=[];
+  for(let i=1;i<N;i++){labels.push(i);data.push(+(q1WinProb(i,N,p)*100).toFixed(2));}
+  makeChart('q1chart','line',labels,[{label:'Win %',data,borderColor:PURPLE,backgroundColor:PURPLE+'22',fill:true,tension:0.3,pointRadius:3}]);
+  document.getElementById('q1-insight').textContent=Math.abs(p-0.5)<0.01
+    ?`Fair game: win prob = k/N = ${(k/N*100).toFixed(0)}%. Expected ${dur.toFixed(0)} rounds.`
+    :p<0.5?`Unfair game (p < 0.5): only ${(wp*100).toFixed(1)}% chance of winning from k=${k}.`
+    :`Favourable game (p > 0.5): ${(wp*100).toFixed(1)}% chance of winning from k=${k}.`;
+}
+
+function updateQ2(){
+  const N=+document.getElementById('q2N').value;
+  const p=+document.getElementById('q2p').value;
+  document.getElementById('q2N-out').textContent=N;
+  document.getElementById('q2p-out').textContent=p.toFixed(2);
+  const{W:boldW}=q2Solve(N,p);
+  const labels=[],boldD=[],timidD=[];
+  for(let k=1;k<N;k++){
+    labels.push(k);
+    boldD.push(+(boldW[k]*100).toFixed(2));
+    timidD.push(+(q1WinProb(k,N,p)*100).toFixed(2));
+  }
+  makeChart('q2chart','line',labels,[
+    {label:'Bold',data:boldD,borderColor:CORAL,backgroundColor:'transparent',tension:0.3,pointRadius:3},
+    {label:'Timid',data:timidD,borderColor:PURPLE,backgroundColor:'transparent',tension:0.3,pointRadius:3,borderDash:[5,3]}
+  ],{legend:true});
+  document.getElementById('q2-insight').textContent=p<0.5
+    ?'p < 0.5 → bold wins. Fewer rounds = less exposure to unfavourable odds.'
+    :p>0.5?'p > 0.5 → timid wins. More rounds lets your edge compound.'
+    :'p = 0.5 → both strategies identical: W(k) = k/N.';
+}
+
+function updateQ3(){
+  const N=+document.getElementById('q3N').value;
+  let t=Math.min(+document.getElementById('q3t').value,N-2);
+  let k=Math.max(Math.min(+document.getElementById('q3k').value,N-1),t+1);
+  const Ws=+document.getElementById('q3W').value;
+  const p=+document.getElementById('q3p').value;
+  document.getElementById('q3k-out').textContent=k;
+  document.getElementById('q3N-out').textContent=N;
+  document.getElementById('q3t-out').textContent=t;
+  document.getElementById('q3W-out').textContent=Ws;
+  document.getElementById('q3p-out').textContent=p.toFixed(2);
+  const{D,idx}=q3Solve(N,t,Ws,p);
+  const dur=D[idx(k,0)];
+  document.getElementById('q3-dur').textContent=isFinite(dur)?dur.toFixed(1):'—';
+  document.getElementById('q3-states').textContent=(N-t+1)*(Ws+1);
+  const labels=[],data=[];
+  for(let kk=t+1;kk<N;kk++){labels.push(kk);const v=D[idx(kk,0)];data.push(isFinite(v)?+v.toFixed(2):null);}
+  makeChart('q3chart','bar',labels,[{label:'Expected rounds',data,backgroundColor:TEAL+'99',borderColor:TEAL,borderWidth:1}]);
+  document.getElementById('q3-insight').textContent=`From k=${k}: expected ${isFinite(dur)?dur.toFixed(1):'—'} rounds before hitting goal N=${N}, floor t=${t}, or streak W=${Ws}.`;
+}
+
+function updateQ4(){
+  const N=+document.getElementById('q4N').value;
+  const p=+document.getElementById('q4p').value;
+  const q=+document.getElementById('q4q').value;
+  const r=Math.max(0,+(1-p-q).toFixed(10));
+  document.getElementById('q4N-out').textContent=N;
+  document.getElementById('q4p-out').textContent=p.toFixed(2);
+  document.getElementById('q4q-out').textContent=q.toFixed(2);
+  document.getElementById('q4r-out').textContent=r.toFixed(2);
+  document.getElementById('q4a').max=N;document.getElementById('q4b').max=N;
+  let a=Math.min(+document.getElementById('q4a').value,N);
+  let b=Math.min(+document.getElementById('q4b').value,N);
+  document.getElementById('q4a-out').textContent=a;
+  document.getElementById('q4b-out').textContent=b;
+  if(p+q>1){document.getElementById('q4-insight').textContent='p + q must be ≤ 1. Reduce p or q.';return;}
+  const pA=[0.5,...Array(N-1).fill(p),0];
+  const qA=[0,...Array(N-1).fill(q),0.5];
+  const rA=[0.5,...Array(N-1).fill(r),0.5];
+  const pi=q4Solve(N,pA,qA,rA);
+  const ew=pi.reduce((s,v,i)=>s+i*v,0);
+  const et=a===b?0:q4ExpTime(N,pA,qA,rA,a,b);
+  document.getElementById('q4-et').textContent=isFinite(et)?et.toFixed(1):'—';
+  document.getElementById('q4-ew').textContent=ew.toFixed(2);
+  const labels=Array.from({length:N+1},(_,i)=>i);
+  makeChart('q4chart','bar',labels,[{label:'π(k)',data:pi.map(v=>+(v*100).toFixed(3)),backgroundColor:PURPLE+'99',borderColor:PURPLE,borderWidth:1}]);
+  document.getElementById('q4-insight').textContent=`Most time spent at state ${pi.indexOf(Math.max(...pi))}. Expected wealth = ${ew.toFixed(2)}. Time from state ${a} to ${b}: ${isFinite(et)?et.toFixed(1)+' rounds':'—'}.`;
+}
+
+updateQ1();updateQ2();updateQ3();updateQ4();
+</script>
+</body>
+</html>
